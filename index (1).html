@@ -1,0 +1,979 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SHRAVAN — Fall Detection System</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #f5f4f0;
+    --surface: #ffffff;
+    --surface-2: #f0efe9;
+    --border: #e2e0d8;
+    --border-strong: #c8c6bc;
+    --text-primary: #1a1916;
+    --text-secondary: #6b6960;
+    --text-muted: #a8a69e;
+    --accent: #1a1916;
+    --accent-2: #3d3c38;
+    --red: #c0392b;
+    --red-light: #fdf2f1;
+    --orange: #d35400;
+    --orange-light: #fef5f0;
+    --green: #1e7a4a;
+    --green-light: #f0faf4;
+    --blue: #1e4a8a;
+    --blue-light: #f0f4fa;
+    --yellow: #b8860b;
+    --yellow-light: #fefbf0;
+    --mono: 'DM Mono', monospace;
+    --sans: 'DM Sans', sans-serif;
+    --display: 'Syne', sans-serif;
+    --radius: 12px;
+    --radius-sm: 6px;
+    --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 4px 12px rgba(0,0,0,0.04);
+    --shadow-md: 0 4px 16px rgba(0,0,0,0.08), 0 1px 4px rgba(0,0,0,0.06);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text-primary);
+    font-family: var(--sans);
+    font-size: 14px;
+    line-height: 1.5;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  .app-shell {
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    min-height: 100vh;
+  }
+
+  /* ── SIDEBAR ── */
+  .sidebar {
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    padding: 28px 0;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+  }
+
+  .sidebar-logo { padding: 0 24px 28px; border-bottom: 1px solid var(--border); }
+  .logo-mark { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
+  .logo-icon {
+    width: 32px; height: 32px; background: var(--accent);
+    border-radius: 8px; display: flex; align-items: center; justify-content: center;
+  }
+  .logo-icon svg { width: 18px; height: 18px; }
+  .logo-name { font-family: var(--display); font-size: 18px; font-weight: 800; letter-spacing: 0.08em; }
+  .logo-sub  { font-size: 11px; color: var(--text-muted); font-family: var(--mono); letter-spacing: 0.04em; padding-left: 42px; }
+
+  .sidebar-nav { flex: 1; padding: 20px 12px; display: flex; flex-direction: column; gap: 2px; }
+  .nav-label { font-size: 10px; font-family: var(--mono); letter-spacing: 0.1em; color: var(--text-muted); padding: 8px 12px 4px; text-transform: uppercase; }
+  .nav-item {
+    display: flex; align-items: center; gap: 10px; padding: 9px 12px;
+    border-radius: var(--radius-sm); cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+    color: var(--text-secondary); font-size: 13.5px;
+    border: none; background: none; width: 100%; text-align: left;
+  }
+  .nav-item:hover { background: var(--surface-2); color: var(--text-primary); }
+  .nav-item.active { background: var(--accent); color: white; }
+  .nav-item svg { width: 16px; height: 16px; stroke: currentColor; stroke-width: 1.8; fill: none; flex-shrink: 0; }
+  .nav-badge {
+    margin-left: auto; background: var(--red); color: white;
+    font-family: var(--mono); font-size: 10px; border-radius: 10px;
+    padding: 1px 6px; min-width: 18px; text-align: center;
+  }
+  .nav-item.active .nav-badge { background: rgba(255,255,255,0.3); }
+
+  .source-pill {
+    margin: 12px 12px 0;
+    padding: 10px 12px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    font-size: 11px;
+    font-family: var(--mono);
+  }
+  .sp-label { color: var(--text-muted); font-size: 10px; margin-bottom: 5px; letter-spacing: 0.06em; text-transform: uppercase; }
+  .sp-row   { display: flex; align-items: center; gap: 6px; }
+  .sp-dot   { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; background: var(--text-muted); transition: background 0.3s; }
+  .sp-val   { color: var(--text-primary); }
+
+  .sidebar-status { padding: 14px 24px; border-top: 1px solid var(--border); }
+  .status-indicator { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-secondary); }
+  .status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); animation: pulse-dot 2s infinite; }
+  .status-dot.offline { background: var(--red); animation: none; }
+  @keyframes pulse-dot { 0%,100%{opacity:1} 50%{opacity:0.35} }
+
+  /* ── TOPBAR ── */
+  .topbar {
+    background: var(--surface); border-bottom: 1px solid var(--border);
+    padding: 0 28px; height: 60px;
+    display: flex; align-items: center; justify-content: space-between;
+    position: sticky; top: 0; z-index: 10;
+  }
+  .topbar-left { display: flex; align-items: center; gap: 16px; }
+  .page-title { font-family: var(--display); font-size: 20px; font-weight: 700; letter-spacing: 0.02em; }
+  .page-sub   { font-size: 12px; color: var(--text-muted); font-family: var(--mono); }
+  .topbar-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+  .tb-btn {
+    display: flex; align-items: center; gap: 6px;
+    padding: 7px 14px; border-radius: var(--radius-sm);
+    border: 1px solid var(--border); background: var(--surface);
+    cursor: pointer; font-size: 12.5px; color: var(--text-secondary);
+    transition: all 0.15s; font-family: var(--sans);
+  }
+  .tb-btn:hover { border-color: var(--border-strong); color: var(--text-primary); background: var(--surface-2); }
+  .tb-btn.danger  { border-color: #f5c5c0; color: var(--red);   background: var(--red-light); }
+  .tb-btn.danger:hover { background: #fae8e6; }
+  .tb-btn.primary { background: var(--accent); color: white; border-color: var(--accent); }
+  .tb-btn.primary:hover { background: var(--accent-2); }
+  .tb-btn svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; }
+
+  .live-badge {
+    display: flex; align-items: center; gap: 6px;
+    padding: 5px 10px; border-radius: 20px;
+    background: var(--green-light); border: 1px solid #b8e4cc;
+    font-size: 11px; font-family: var(--mono); color: var(--green); letter-spacing: 0.06em;
+  }
+  .live-badge .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); animation: pulse-dot 1.5s infinite; }
+
+  .phone-badge {
+    display: flex; align-items: center; gap: 6px;
+    padding: 5px 10px; border-radius: 20px;
+    font-size: 11px; font-family: var(--mono); letter-spacing: 0.04em; transition: all 0.3s;
+  }
+  .phone-badge.ok   { background: #e8f5ee; border: 1px solid #b8e4cc; color: var(--green); }
+  .phone-badge.fail { background: var(--orange-light); border: 1px solid #f8c8a0; color: var(--orange); }
+  .phone-badge svg  { width: 12px; height: 12px; stroke: currentColor; fill: none; stroke-width: 2; }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .refresh-spin { animation: spin 0.8s linear infinite; }
+
+  /* ── MAIN ── */
+  .main-content { padding: 24px 28px; display: flex; flex-direction: column; gap: 22px; overflow-y: auto; }
+
+  .panel { display: none; flex-direction: column; gap: 22px; }
+  .panel.active { display: flex; }
+
+  /* KPI */
+  .kpi-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; }
+  .kpi-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 20px; box-shadow: var(--shadow);
+    position: relative; overflow: hidden; transition: box-shadow 0.2s;
+  }
+  .kpi-card:hover { box-shadow: var(--shadow-md); }
+  .kpi-card::before {
+    content:''; position:absolute; top:0;left:0;right:0; height:3px;
+    background: var(--kpi-color, var(--border)); border-radius: var(--radius) var(--radius) 0 0;
+  }
+  .kpi-card.kpi-red    { --kpi-color: var(--red); }
+  .kpi-card.kpi-green  { --kpi-color: var(--green); }
+  .kpi-card.kpi-blue   { --kpi-color: var(--blue); }
+  .kpi-card.kpi-orange { --kpi-color: var(--orange); }
+  .kpi-label { font-size:11px; font-family:var(--mono); color:var(--text-muted); letter-spacing:0.08em; text-transform:uppercase; margin-bottom:10px; }
+  .kpi-value { font-family:var(--display); font-size:32px; font-weight:700; line-height:1; margin-bottom:6px; transition:color 0.3s; }
+  .kpi-sub   { font-size:11.5px; color:var(--text-muted); }
+
+  /* GRID */
+  .grid-2   { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  .grid-2-1 { display:grid; grid-template-columns:2fr 1fr; gap:14px; }
+
+  /* CARD */
+  .card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow); overflow:hidden; }
+  .card-header { padding:14px 20px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; }
+  .card-title  { font-family:var(--display); font-size:14px; font-weight:600; letter-spacing:0.02em; }
+  .card-meta   { font-size:11px; font-family:var(--mono); color:var(--text-muted); }
+  .card-body   { padding:18px 20px; }
+
+  canvas { width:100% !important; display:block; }
+
+  /* ACTIVITY HERO */
+  .activity-hero { display:flex; flex-direction:column; align-items:center; justify-content:center; padding:26px 20px; gap:10px; text-align:center; }
+  .activity-icon-ring {
+    width:76px; height:76px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    font-size:34px; border:2px solid var(--border); background:var(--surface-2);
+    transition:all 0.4s;
+  }
+  .activity-icon-ring.fall    { background:var(--red-light);    border-color:#f5c5c0; animation:ring-pulse 0.8s infinite; }
+  .activity-icon-ring.running { background:var(--orange-light); border-color:#f8d5b8; }
+  .activity-icon-ring.walking { background:var(--green-light);  border-color:#b8e4cc; }
+  .activity-icon-ring.sitting { background:var(--blue-light);   border-color:#b8c8e4; }
+  @keyframes ring-pulse { 0%,100%{box-shadow:0 0 0 0 rgba(192,57,43,0.3)} 50%{box-shadow:0 0 0 14px rgba(192,57,43,0)} }
+
+  .activity-name { font-family:var(--display); font-size:20px; font-weight:700; text-transform:capitalize; }
+  .mag-display   { font-family:var(--mono); font-size:26px; font-weight:500; }
+  .mag-unit      { font-size:13px; color:var(--text-muted); }
+
+  /* AXES */
+  .axes-grid  { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .axis-card  { background:var(--surface-2); border:1px solid var(--border); border-radius:var(--radius-sm); padding:14px; }
+  .axis-label { font-size:10px; font-family:var(--mono); color:var(--text-muted); letter-spacing:0.1em; text-transform:uppercase; margin-bottom:4px; }
+  .axis-value { font-family:var(--mono); font-size:20px; font-weight:500; transition:color 0.3s; }
+  .axis-bar   { margin-top:8px; height:3px; background:var(--border); border-radius:2px; overflow:hidden; }
+  .axis-fill  { height:100%; border-radius:2px; transition:width 0.35s ease, background 0.35s; background:var(--accent); }
+
+  /* ALERTS */
+  .alert-scroll { max-height:360px; overflow-y:auto; display:flex; flex-direction:column; gap:8px; padding:14px; }
+  .alert-scroll::-webkit-scrollbar { width:4px; }
+  .alert-scroll::-webkit-scrollbar-thumb { background:var(--border); border-radius:4px; }
+
+  .alert-item {
+    display:flex; align-items:flex-start; gap:12px;
+    padding:12px 14px; border-radius:var(--radius-sm);
+    border:1px solid var(--border); background:var(--surface-2);
+    animation:slide-in 0.3s ease;
+  }
+  @keyframes slide-in { from{opacity:0;transform:translateY(-6px)} to{opacity:1;transform:translateY(0)} }
+  .alert-item.unack { border-left:3px solid var(--red); background:var(--red-light); }
+  .alert-item.unack.medium { border-left-color:var(--orange); background:var(--orange-light); }
+  .alert-item.unack.low    { border-left-color:var(--yellow); background:var(--yellow-light); }
+  .alert-dot        { width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:5px; }
+  .alert-dot.high   { background:var(--red); }
+  .alert-dot.medium { background:var(--orange); }
+  .alert-dot.low    { background:var(--yellow); }
+  .alert-content    { flex:1; }
+  .alert-msg  { font-size:13px; font-weight:500; margin-bottom:2px; }
+  .alert-time { font-size:11px; font-family:var(--mono); color:var(--text-muted); }
+  .alert-ack-btn {
+    font-size:11px; padding:3px 8px; border:1px solid var(--border);
+    background:var(--surface); border-radius:4px; cursor:pointer;
+    color:var(--text-secondary); white-space:nowrap; transition:all 0.15s; font-family:var(--sans);
+  }
+  .alert-ack-btn:hover { background:var(--accent); color:white; border-color:var(--accent); }
+  .empty-state { text-align:center; padding:32px 16px; color:var(--text-muted); font-size:13px; }
+  .empty-state .icon { font-size:26px; margin-bottom:8px; }
+
+  /* TABLE */
+  .table-wrap { overflow-x:auto; max-height:440px; overflow-y:auto; }
+  .table-wrap::-webkit-scrollbar { width:4px; height:4px; }
+  .table-wrap::-webkit-scrollbar-thumb { background:var(--border); border-radius:4px; }
+  table { width:100%; border-collapse:collapse; font-size:12.5px; }
+  thead th {
+    background:var(--surface-2); padding:10px 14px; text-align:left;
+    font-family:var(--mono); font-size:10px; font-weight:500; letter-spacing:0.08em;
+    text-transform:uppercase; color:var(--text-muted); border-bottom:1px solid var(--border);
+    position:sticky; top:0; z-index:2;
+  }
+  tbody tr { border-bottom:1px solid var(--border); transition:background 0.1s; }
+  tbody tr:hover { background:var(--surface-2); }
+  tbody tr.fall-row    { background:var(--red-light); }
+  tbody tr.fall-row:hover { background:#fbe8e6; }
+  tbody tr.anomaly-row { background:var(--orange-light); }
+  tbody td { padding:9px 14px; color:var(--text-secondary); font-family:var(--mono); font-size:12px; }
+  tbody td:first-child { color:var(--text-primary); font-weight:500; }
+
+  .tag { display:inline-flex; align-items:center; padding:2px 8px; border-radius:20px; font-size:10px; font-family:var(--mono); letter-spacing:0.04em; }
+  .tag-fall     { background:var(--red-light);    color:var(--red);    border:1px solid #f5c5c0; }
+  .tag-anomaly  { background:var(--orange-light); color:var(--orange); border:1px solid #f8c8a0; }
+  .tag-ok       { background:var(--green-light);  color:var(--green);  border:1px solid #b8e4cc; }
+  .tag-activity { background:var(--blue-light);   color:var(--blue);   border:1px solid #b8c8e4; }
+  .tag-real     { background:var(--green-light);  color:var(--green);  border:1px solid #b8e4cc; }
+  .tag-synth    { background:var(--surface-2); color:var(--text-muted); border:1px solid var(--border); }
+
+  /* STATS */
+  .stats-row { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
+  .stat-block { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:22px; box-shadow:var(--shadow); }
+  .stat-label { font-size:11px; font-family:var(--mono); color:var(--text-muted); text-transform:uppercase; letter-spacing:0.08em; margin-bottom:12px; }
+  .stat-num   { font-family:var(--display); font-size:36px; font-weight:700; line-height:1; margin-bottom:4px; }
+  .stat-desc  { font-size:12px; color:var(--text-muted); }
+  .act-row      { display:flex; align-items:center; gap:12px; margin-bottom:10px; }
+  .act-label    { font-size:12px; font-family:var(--mono); color:var(--text-secondary); width:80px; flex-shrink:0; }
+  .act-bar-wrap { flex:1; height:6px; background:var(--border); border-radius:3px; overflow:hidden; }
+  .act-bar-fill { height:100%; border-radius:3px; transition:width 0.8s ease; background:var(--accent); }
+  .act-count    { font-size:11px; font-family:var(--mono); color:var(--text-muted); width:40px; text-align:right; }
+
+  /* SPARKLINES */
+  .sparkline-row   { display:flex; align-items:center; gap:12px; padding:9px 0; border-bottom:1px solid var(--border); }
+  .sparkline-row:last-child { border-bottom:none; }
+  .sparkline-label { width:52px; font-size:11px; font-family:var(--mono); color:var(--text-muted); flex-shrink:0; }
+  .sparkline-canvas{ flex:1; height:28px; }
+  .sparkline-val   { width:70px; text-align:right; font-family:var(--mono); font-size:12px; color:var(--text-primary); }
+
+  /* FALL OVERLAY */
+  #fall-overlay {
+    display:none; position:fixed; inset:0;
+    background:rgba(192,57,43,0.07); backdrop-filter:blur(2px);
+    z-index:100; align-items:center; justify-content:center;
+  }
+  #fall-overlay.show { display:flex; }
+  .fall-modal {
+    background:var(--surface); border:2px solid var(--red); border-radius:18px;
+    padding:40px; max-width:380px; width:90%; text-align:center;
+    box-shadow:0 20px 60px rgba(192,57,43,0.2);
+    animation:modal-in 0.4s cubic-bezier(0.34,1.56,0.64,1);
+  }
+  @keyframes modal-in { from{opacity:0;transform:scale(0.85) translateY(20px)} to{opacity:1;transform:scale(1) translateY(0)} }
+  .fall-icon  { font-size:52px; margin-bottom:12px; animation:shake 0.5s infinite alternate; }
+  @keyframes shake { from{transform:rotate(-5deg)} to{transform:rotate(5deg)} }
+  .fall-title { font-family:var(--display); font-size:24px; font-weight:800; color:var(--red); margin-bottom:8px; }
+  .fall-desc  { font-size:14px; color:var(--text-secondary); margin-bottom:20px; line-height:1.6; }
+  .fall-mag   { font-family:var(--mono); font-size:32px; font-weight:500; color:var(--red); margin-bottom:4px; }
+  .fall-mag-label  { font-size:12px; color:var(--text-muted); font-family:var(--mono); margin-bottom:8px; }
+  .fall-source-tag { font-size:11px; font-family:var(--mono); color:var(--text-muted); margin-bottom:20px; }
+  .fall-btn {
+    padding:12px 32px; background:var(--red); color:white; border:none;
+    border-radius:var(--radius-sm); font-size:14px; font-weight:600; cursor:pointer;
+    font-family:var(--display); letter-spacing:0.04em; transition:background 0.2s;
+  }
+  .fall-btn:hover { background:#a93226; }
+
+  /* TOAST */
+  .toast-container { position:fixed; bottom:24px; right:24px; display:flex; flex-direction:column; gap:8px; z-index:200; }
+  .toast {
+    padding:11px 16px; border-radius:var(--radius-sm); font-size:13px;
+    box-shadow:var(--shadow-md); animation:toast-in 0.3s ease; max-width:300px;
+    background:var(--accent); color:white;
+  }
+  .toast.success { background:var(--green); }
+  .toast.warning { background:var(--orange); }
+  .toast.error   { background:var(--red); }
+  @keyframes toast-in { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+
+  @media (max-width:1100px) { .kpi-grid{grid-template-columns:repeat(2,1fr)} .grid-2-1{grid-template-columns:1fr} }
+  @media (max-width:768px)  { .app-shell{grid-template-columns:1fr} .sidebar{display:none} }
+</style>
+</head>
+<body>
+
+<div class="app-shell">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-mark">
+        <div class="logo-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
+            <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/>
+            <path d="M12 6v6l4 2"/>
+          </svg>
+        </div>
+        <span class="logo-name">SHRAVAN</span>
+      </div>
+      <div class="logo-sub">Fall Detection System</div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <div class="nav-label">Monitor</div>
+      <button class="nav-item active" onclick="showPanel('dashboard')">
+        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+        Dashboard
+      </button>
+      <button class="nav-item" onclick="showPanel('live')">
+        <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        Live Sensors
+      </button>
+      <button class="nav-item" onclick="showPanel('alerts')">
+        <svg viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        Alerts
+        <span class="nav-badge" id="sidebar-alert-count">0</span>
+      </button>
+      <div class="nav-label" style="margin-top:6px">Data</div>
+      <button class="nav-item" onclick="showPanel('history')">
+        <svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><polyline points="18 17 13 12 9 16 3 10"/></svg>
+        History
+      </button>
+      <button class="nav-item" onclick="showPanel('stats')">
+        <svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+        Statistics
+      </button>
+
+      <!-- Source status pill -->
+      <div class="source-pill" style="margin-top:16px">
+        <div class="sp-label">Data Source</div>
+        <div class="sp-row">
+          <div class="sp-dot" id="sp-dot"></div>
+          <span class="sp-val" id="sp-mode-text">—</span>
+        </div>
+        <div style="font-size:10px;color:var(--text-muted);margin-top:4px;word-break:break-all" id="sp-detail">—</div>
+      </div>
+    </nav>
+
+    <div class="sidebar-status">
+      <div class="status-indicator">
+        <div class="status-dot" id="conn-dot"></div>
+        <span id="conn-label">Connecting…</span>
+      </div>
+      <div style="font-size:11px;color:var(--text-muted);margin-top:3px;font-family:var(--mono)" id="last-update">—</div>
+    </div>
+  </aside>
+
+  <!-- RIGHT SIDE -->
+  <div style="display:flex;flex-direction:column;min-height:100vh;overflow:hidden">
+
+    <!-- TOPBAR -->
+    <header class="topbar">
+      <div class="topbar-left">
+        <div>
+          <div class="page-title" id="page-title">Dashboard</div>
+          <div class="page-sub"  id="page-sub">Real-time fall &amp; activity monitoring</div>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <div class="live-badge"><span class="dot"></span>LIVE</div>
+        <div class="phone-badge fail" id="phone-badge">
+          <svg viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+          <span id="phone-badge-text">Checking…</span>
+        </div>
+        <button class="tb-btn" onclick="triggerFall()">
+          <svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          Simulate Fall
+        </button>
+        <button class="tb-btn danger" onclick="clearHistory()">
+          <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/></svg>
+          Clear
+        </button>
+        <button class="tb-btn primary" onclick="fetchNow()">
+          <svg viewBox="0 0 24 24" id="refresh-icon"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
+          Refresh
+        </button>
+      </div>
+    </header>
+
+    <main class="main-content">
+
+      <!-- ═══ DASHBOARD ═══ -->
+      <div class="panel active" id="panel-dashboard">
+        <div class="kpi-grid">
+          <div class="kpi-card kpi-red">
+            <div class="kpi-label">Falls Detected</div>
+            <div class="kpi-value" id="kpi-falls">—</div>
+            <div class="kpi-sub">Total events recorded</div>
+          </div>
+          <div class="kpi-card kpi-orange">
+            <div class="kpi-label">Anomalies</div>
+            <div class="kpi-value" id="kpi-anomalies">—</div>
+            <div class="kpi-sub">Statistical outliers</div>
+          </div>
+          <div class="kpi-card kpi-green">
+            <div class="kpi-label">Magnitude</div>
+            <div class="kpi-value" id="kpi-magnitude">—</div>
+            <div class="kpi-sub">Current acceleration (g)</div>
+          </div>
+          <div class="kpi-card kpi-blue">
+            <div class="kpi-label">Unack Alerts</div>
+            <div class="kpi-value" id="kpi-alerts">—</div>
+            <div class="kpi-sub">Pending review</div>
+          </div>
+        </div>
+
+        <div class="grid-2-1">
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">Acceleration Magnitude</span>
+              <span class="card-meta">last 80 readings</span>
+            </div>
+            <div class="card-body">
+              <div style="position:relative;height:180px"><canvas id="mag-chart"></canvas></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">Current Activity</span>
+              <span class="card-meta" id="act-time">—</span>
+            </div>
+            <div class="activity-hero">
+              <div class="activity-icon-ring" id="act-ring">📡</div>
+              <div class="activity-name" id="act-name">—</div>
+              <div class="mag-display" id="mag-big">—<span class="mag-unit"> g</span></div>
+              <div style="font-size:11px;font-family:var(--mono);margin-top:2px" id="act-source-tag">—</div>
+              <div style="font-size:12px;font-family:var(--mono);margin-top:2px" id="act-status">Monitoring…</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">Accelerometer</span>
+              <span class="card-meta">m/s²</span>
+            </div>
+            <div class="card-body">
+              <div class="axes-grid">
+                <div class="axis-card"><div class="axis-label">ACC · X</div><div class="axis-value" id="ax-x">—</div><div class="axis-bar"><div class="axis-fill" id="axb-x" style="width:50%"></div></div></div>
+                <div class="axis-card"><div class="axis-label">ACC · Y</div><div class="axis-value" id="ax-y">—</div><div class="axis-bar"><div class="axis-fill" id="axb-y" style="width:50%"></div></div></div>
+                <div class="axis-card"><div class="axis-label">ACC · Z</div><div class="axis-value" id="ax-z">—</div><div class="axis-bar"><div class="axis-fill" id="axb-z" style="width:50%"></div></div></div>
+                <div class="axis-card"><div class="axis-label">Z-Score</div><div class="axis-value" id="ax-zscore" style="font-size:18px">—</div><div class="axis-bar"><div class="axis-fill" id="axb-zscore" style="width:0%;background:var(--orange)"></div></div></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">Gyroscope</span>
+              <span class="card-meta">rad/s</span>
+            </div>
+            <div class="card-body">
+              <div class="axes-grid">
+                <div class="axis-card"><div class="axis-label">GYRO · X</div><div class="axis-value" id="gy-x">—</div><div class="axis-bar"><div class="axis-fill" id="gyb-x" style="width:50%;background:var(--blue)"></div></div></div>
+                <div class="axis-card"><div class="axis-label">GYRO · Y</div><div class="axis-value" id="gy-y">—</div><div class="axis-bar"><div class="axis-fill" id="gyb-y" style="width:50%;background:var(--blue)"></div></div></div>
+                <div class="axis-card"><div class="axis-label">GYRO · Z</div><div class="axis-value" id="gy-z">—</div><div class="axis-bar"><div class="axis-fill" id="gyb-z" style="width:50%;background:var(--blue)"></div></div></div>
+                <div class="axis-card" style="background:var(--surface)"><div class="axis-label">Fall Status</div><div style="margin-top:8px"><div class="tag tag-ok" id="fall-tag">CLEAR</div></div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ LIVE SENSORS ═══ -->
+      <div class="panel" id="panel-live">
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-header"><span class="card-title">Accelerometer — Live</span><span class="card-meta">X / Y / Z  (m/s²)</span></div>
+            <div class="card-body"><div style="position:relative;height:200px"><canvas id="acc-chart"></canvas></div></div>
+          </div>
+          <div class="card">
+            <div class="card-header"><span class="card-title">Gyroscope — Live</span><span class="card-meta">X / Y / Z  (rad/s)</span></div>
+            <div class="card-body"><div style="position:relative;height:200px"><canvas id="gyro-chart"></canvas></div></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Sparklines</span>
+            <span class="card-meta" id="sp-source-label">rolling 40 samples</span>
+          </div>
+          <div class="card-body">
+            <div class="sparkline-row"><span class="sparkline-label">accX</span><canvas class="sparkline-canvas" id="sp-accX"></canvas><span class="sparkline-val" id="spv-accX">—</span></div>
+            <div class="sparkline-row"><span class="sparkline-label">accY</span><canvas class="sparkline-canvas" id="sp-accY"></canvas><span class="sparkline-val" id="spv-accY">—</span></div>
+            <div class="sparkline-row"><span class="sparkline-label">accZ</span><canvas class="sparkline-canvas" id="sp-accZ"></canvas><span class="sparkline-val" id="spv-accZ">—</span></div>
+            <div class="sparkline-row"><span class="sparkline-label">gyroX</span><canvas class="sparkline-canvas" id="sp-gyroX"></canvas><span class="sparkline-val" id="spv-gyroX">—</span></div>
+            <div class="sparkline-row"><span class="sparkline-label">gyroY</span><canvas class="sparkline-canvas" id="sp-gyroY"></canvas><span class="sparkline-val" id="spv-gyroY">—</span></div>
+            <div class="sparkline-row"><span class="sparkline-label">gyroZ</span><canvas class="sparkline-canvas" id="sp-gyroZ"></canvas><span class="sparkline-val" id="spv-gyroZ">—</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ ALERTS ═══ -->
+      <div class="panel" id="panel-alerts">
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Alert Log</span>
+            <div style="display:flex;gap:8px">
+              <button class="tb-btn" onclick="fetchAlerts()">Refresh</button>
+              <button class="tb-btn danger" onclick="ackAll()">Acknowledge All</button>
+            </div>
+          </div>
+          <div class="alert-scroll" id="alerts-list">
+            <div class="empty-state"><div class="icon">🔔</div><div>No alerts yet</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ HISTORY ═══ -->
+      <div class="panel" id="panel-history">
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Sensor History</span>
+            <div style="display:flex;gap:8px;align-items:center">
+              <span class="card-meta" id="hist-count">—</span>
+              <button class="tb-btn" onclick="fetchHistory()">Reload</button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Time</th><th>accX</th><th>accY</th><th>accZ</th>
+                  <th>gyroX</th><th>gyroY</th><th>gyroZ</th>
+                  <th>Magnitude</th><th>Activity</th><th>Source</th><th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="history-tbody">
+                <tr><td colspan="11" style="text-align:center;padding:24px;color:var(--text-muted)">Loading…</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══ STATISTICS ═══ -->
+      <div class="panel" id="panel-stats">
+        <div class="stats-row">
+          <div class="stat-block">
+            <div class="stat-label">Total Records</div>
+            <div class="stat-num" id="st-total">—</div>
+            <div class="stat-desc" id="st-breakdown-line">— real · — synthetic</div>
+          </div>
+          <div class="stat-block" style="border-top:3px solid var(--red)">
+            <div class="stat-label">Fall Events</div>
+            <div class="stat-num" style="color:var(--red)" id="st-falls">—</div>
+            <div class="stat-desc">Detected incidents</div>
+          </div>
+          <div class="stat-block" style="border-top:3px solid var(--orange)">
+            <div class="stat-label">Anomalies</div>
+            <div class="stat-num" style="color:var(--orange)" id="st-anomalies">—</div>
+            <div class="stat-desc">Statistical outliers</div>
+          </div>
+        </div>
+
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-header"><span class="card-title">Magnitude Over Time</span><span class="card-meta">last 100 readings</span></div>
+            <div class="card-body">
+              <div style="position:relative;height:180px"><canvas id="stats-chart"></canvas></div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px">
+                <div class="axis-card"><div class="axis-label">Mean</div><div class="axis-value" id="st-mean" style="font-size:18px">—</div></div>
+                <div class="axis-card"><div class="axis-label">Std Dev</div><div class="axis-value" id="st-std" style="font-size:18px">—</div></div>
+                <div class="axis-card"><div class="axis-label">Max</div><div class="axis-value" id="st-max" style="font-size:18px;color:var(--red)">—</div></div>
+                <div class="axis-card"><div class="axis-label">Min</div><div class="axis-value" id="st-min" style="font-size:18px;color:var(--green)">—</div></div>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header"><span class="card-title">Activity Breakdown</span><span class="card-meta">by count</span></div>
+            <div class="card-body">
+              <div id="activity-breakdown"><div style="color:var(--text-muted);font-size:13px">Loading…</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<!-- FALL OVERLAY -->
+<div id="fall-overlay">
+  <div class="fall-modal">
+    <div class="fall-icon">⚠️</div>
+    <div class="fall-title">ANAMOLY DETECTED</div>
+    <div class="fall-desc">A Anomaly event has been detected. Immediate attention may be required.</div>
+    <div class="fall-mag" id="fall-modal-mag">—</div>
+    <div class="fall-mag-label">acceleration magnitude (g)</div>
+    <div class="fall-source-tag" id="fall-modal-source">—</div>
+    <button class="fall-btn" onclick="dismissFall()">Acknowledge &amp; Dismiss</button>
+  </div>
+</div>
+
+<div class="toast-container" id="toast-container"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+Chart.defaults.font.family = "'DM Mono', monospace";
+Chart.defaults.color        = "#a8a69e";
+Chart.defaults.borderColor  = "#e2e0d8";
+
+const MAX_PTS = 80, SP_PTS = 40;
+let fallActive = false, currentPanel = 'dashboard';
+
+// ── Chart factory ──
+function makeChart(id, datasets, yMin, yMax) {
+  const el = document.getElementById(id);
+  if (!el) return null;
+  return new Chart(el.getContext('2d'), {
+    type: 'line',
+    data: { labels: [], datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false, animation: { duration: 0 },
+      plugins: {
+        legend: { display: datasets.length > 1, position: 'top', labels: { boxWidth: 10, padding: 12, font: { size: 11 } } },
+        tooltip: { mode: 'index', intersect: false }
+      },
+      scales: {
+        x: { display: false },
+        y: { min: yMin, max: yMax, grid: { color: '#e2e0d8' }, ticks: { font: { size: 10 }, maxTicksLimit: 5 } }
+      },
+      elements: { point: { radius: 0 }, line: { tension: 0.35 } }
+    }
+  });
+}
+
+const magChart   = makeChart('mag-chart',   [{ label:'Magnitude', data:[], borderColor:'#1a1916', backgroundColor:'rgba(26,25,22,0.05)', fill:true, borderWidth:1.5 }], 0, 30);
+const accChart   = makeChart('acc-chart',   [{ label:'accX', data:[], borderColor:'#c0392b', borderWidth:1.5, fill:false }, { label:'accY', data:[], borderColor:'#1e7a4a', borderWidth:1.5, fill:false }, { label:'accZ', data:[], borderColor:'#1e4a8a', borderWidth:1.5, fill:false }], -20, 25);
+const gyroChart  = makeChart('gyro-chart',  [{ label:'gyroX', data:[], borderColor:'#d35400', borderWidth:1.5, fill:false }, { label:'gyroY', data:[], borderColor:'#8e44ad', borderWidth:1.5, fill:false }, { label:'gyroZ', data:[], borderColor:'#16a085', borderWidth:1.5, fill:false }], -20, 20);
+const statsChart = makeChart('stats-chart', [{ label:'Magnitude', data:[], borderColor:'#1a1916', backgroundColor:'rgba(26,25,22,0.04)', fill:true, borderWidth:1.5 }], 0, 30);
+
+// Sparklines
+const sparkCharts = {};
+['accX','accY','accZ','gyroX','gyroY','gyroZ'].forEach(k => {
+  const el = document.getElementById('sp-' + k);
+  if (!el) return;
+  sparkCharts[k] = new Chart(el.getContext('2d'), {
+    type: 'line',
+    data: { labels: [], datasets: [{ data: [], borderColor: '#1a1916', borderWidth: 1, fill: false }] },
+    options: { responsive: true, maintainAspectRatio: false, animation: { duration: 0 },
+      plugins: { legend: { display: false }, tooltip: { enabled: false } },
+      scales: { x: { display: false }, y: { display: false } },
+      elements: { point: { radius: 0 }, line: { tension: 0.3 } } }
+  });
+});
+
+// ── Push helpers ──
+function push(chart, label, ...vals) {
+  if (!chart) return;
+  chart.data.labels.push(label);
+  vals.forEach((v, i) => chart.data.datasets[i].data.push(v));
+  while (chart.data.labels.length > MAX_PTS) {
+    chart.data.labels.shift();
+    chart.data.datasets.forEach(ds => ds.data.shift());
+  }
+  chart.update('none');
+}
+
+function pushSpark(key, val) {
+  const sc = sparkCharts[key];
+  if (!sc) return;
+  sc.data.datasets[0].data.push(val);
+  sc.data.labels.push(sc.data.labels.length);
+  while (sc.data.labels.length > SP_PTS) { sc.data.labels.shift(); sc.data.datasets[0].data.shift(); }
+  sc.update('none');
+  const el = document.getElementById('spv-' + key);
+  if (el) el.textContent = val.toFixed(4);
+}
+
+function setAxis(vid, bid, val, maxAbs, color) {
+  const el = document.getElementById(vid), bar = document.getElementById(bid);
+  if (!el || !bar) return;
+  el.textContent = val.toFixed(3);
+  const pct = Math.min(100, Math.abs(val) / maxAbs * 100);
+  bar.style.width      = pct + '%';
+  bar.style.background = Math.abs(val) > maxAbs * 0.8 ? 'var(--red)' : (color || 'var(--accent)');
+}
+
+// ── Source UI ──
+function updateSourceUI(source, phoneOk) {
+  const badge = document.getElementById('phone-badge');
+  const btxt  = document.getElementById('phone-badge-text');
+  if (phoneOk) { badge.className = 'phone-badge ok';   btxt.textContent = 'Phone · Live'; }
+  else         { badge.className = 'phone-badge fail';  btxt.textContent = 'Phone · Offline'; }
+
+  const dot  = document.getElementById('sp-dot');
+  const mTxt = document.getElementById('sp-mode-text');
+  if (source === 'real') { dot.style.background = 'var(--green)'; mTxt.textContent = 'Real phone'; }
+  else                   { dot.style.background = 'var(--orange)'; mTxt.textContent = 'Synthetic'; }
+
+  const stag = document.getElementById('act-source-tag');
+  if (stag) { stag.textContent = source === 'real' ? '📱 Real sensor' : '🤖 Synthetic'; stag.style.color = source === 'real' ? 'var(--green)' : 'var(--orange)'; }
+
+  const spLbl = document.getElementById('sp-source-label');
+  if (spLbl) spLbl.textContent = (source === 'real' ? '📱 phone' : '🤖 synthetic') + ' · rolling 40 samples';
+}
+
+// ── fetchData ──
+async function fetchData() {
+  try {
+    const res = await fetch('/data');
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const d = await res.json();
+    if (d.error) throw new Error(d.error);
+
+    const ts  = new Date().toLocaleTimeString();
+    const mag = d.magnitude;
+    const src = d.source || 'synthetic';
+
+    // KPIs
+    const mEl = document.getElementById('kpi-magnitude');
+    mEl.textContent = mag.toFixed(2);
+    mEl.style.color = d.fall_detected ? 'var(--red)' : '';
+
+    // Activity
+    const icons = { walking:'🚶', running:'🏃', steady:'🪑', falling:'⚠️', free_fall:'🌀', impact:'💥', unknown:'📡' };
+    document.getElementById('act-name').textContent = d.activity || 'unknown';
+    const ring = document.getElementById('act-ring');
+    ring.textContent = icons[d.activity] || '📡';
+    ring.className   = 'activity-icon-ring ' + (d.fall_detected ? 'fall' : (d.activity || ''));
+    document.getElementById('mag-big').innerHTML = mag.toFixed(3) + '<span class="mag-unit"> g</span>';
+    document.getElementById('act-time').textContent = ts;
+    const statEl = document.getElementById('act-status');
+    statEl.textContent = d.fall_detected ? '⚠ Fall event!' : d.anomaly ? '⚡ Anomaly' : 'Normal operation';
+    statEl.style.color = d.fall_detected ? 'var(--red)' : d.anomaly ? 'var(--orange)' : 'var(--green)';
+
+    // Axes
+    setAxis('ax-x','axb-x', d.accX, 15);
+    setAxis('ax-y','axb-y', d.accY, 20);
+    setAxis('ax-z','axb-z', d.accZ, 15);
+    setAxis('gy-x','gyb-x', d.gyroX, 20, 'var(--blue)');
+    setAxis('gy-y','gyb-y', d.gyroY, 20, 'var(--blue)');
+    setAxis('gy-z','gyb-z', d.gyroZ, 20, 'var(--blue)');
+
+    const zs = d.z_score || 0;
+    document.getElementById('ax-zscore').textContent = zs.toFixed(2);
+    const zb = document.getElementById('axb-zscore');
+    zb.style.width = Math.min(100, zs / 5 * 100) + '%';
+    zb.style.background = zs > 4 ? 'var(--red)' : zs > 2.5 ? 'var(--orange)' : 'var(--green)';
+
+    const ft = document.getElementById('fall-tag');
+    if (ft) {
+      if (d.fall_detected) { ft.className = 'tag tag-fall'; ft.textContent = 'FALL!'; }
+      else if (d.anomaly)  { ft.className = 'tag tag-anomaly'; ft.textContent = 'ANOMALY'; }
+      else                 { ft.className = 'tag tag-ok'; ft.textContent = 'CLEAR'; }
+    }
+
+    // Charts + sparklines
+    push(magChart,  ts, mag);
+    push(accChart,  ts, d.accX, d.accY, d.accZ);
+    push(gyroChart, ts, d.gyroX, d.gyroY, d.gyroZ);
+    push(statsChart, ts, mag);
+    ['accX','accY','accZ','gyroX','gyroY','gyroZ'].forEach(k => pushSpark(k, d[k]));
+
+    updateSourceUI(src, d.phone_ok);
+
+    // Fall overlay
+    if (d.fall_detected && !fallActive) {
+      fallActive = true;
+      document.getElementById('fall-modal-mag').textContent    = mag.toFixed(3);
+      document.getElementById('fall-modal-source').textContent = src === 'real' ? '📱 Real sensor data' : '🤖 Synthetic simulation';
+      document.getElementById('fall-overlay').classList.add('show');
+    }
+
+    document.getElementById('conn-dot').className     = 'status-dot';
+    document.getElementById('conn-label').textContent  = 'Connected';
+    document.getElementById('last-update').textContent = ts;
+    const ri = document.getElementById('refresh-icon');
+    ri.classList.add('refresh-spin');
+    setTimeout(() => ri.classList.remove('refresh-spin'), 600);
+
+  } catch(e) {
+    document.getElementById('conn-dot').className     = 'status-dot offline';
+    document.getElementById('conn-label').textContent  = 'Disconnected';
+    console.error('[fetchData]', e);
+  }
+}
+
+// ── fetchStats ──
+async function fetchStats() {
+  try {
+    const d = await fetch('/stats').then(r => r.json());
+    document.getElementById('kpi-falls').textContent     = d.fall_events     ?? '—';
+    document.getElementById('kpi-anomalies').textContent = d.anomaly_events  ?? '—';
+    document.getElementById('kpi-alerts').textContent    = d.unacknowledged_alerts ?? '—';
+    document.getElementById('sidebar-alert-count').textContent = d.unacknowledged_alerts || 0;
+    document.getElementById('st-total').textContent     = d.total_records    ?? '—';
+    document.getElementById('st-falls').textContent     = d.fall_events      ?? '—';
+    document.getElementById('st-anomalies').textContent = d.anomaly_events   ?? '—';
+    document.getElementById('st-breakdown-line').textContent =
+      (d.real_readings || 0) + ' real · ' + (d.synthetic_readings || 0) + ' synthetic';
+    const spd = document.getElementById('sp-detail');
+    if (spd) spd.textContent = d.data_source || '—';
+    if (d.magnitude_stats) {
+      document.getElementById('st-mean').textContent = d.magnitude_stats.mean ?? '—';
+      document.getElementById('st-std').textContent  = d.magnitude_stats.std  ?? '—';
+      document.getElementById('st-max').textContent  = d.magnitude_stats.max  ?? '—';
+      document.getElementById('st-min').textContent  = d.magnitude_stats.min  ?? '—';
+    }
+    if (d.activity_breakdown) {
+      const counts = d.activity_breakdown;
+      const total  = Object.values(counts).reduce((a,b)=>a+b,0) || 1;
+      const colors = { walking:'var(--green)', running:'var(--orange)', sitting:'var(--blue)', falling:'var(--red)', free_fall:'var(--red)', impact:'var(--red)', unknown:'var(--text-muted)' };
+      document.getElementById('activity-breakdown').innerHTML =
+        Object.entries(counts).map(([act, cnt]) =>
+          `<div class="act-row"><span class="act-label">${act}</span><div class="act-bar-wrap"><div class="act-bar-fill" style="width:${(cnt/total*100).toFixed(1)}%;background:${colors[act]||'var(--accent)'}"></div></div><span class="act-count">${cnt}</span></div>`
+        ).join('');
+    }
+  } catch(e) { console.error('[fetchStats]', e); }
+}
+
+// ── fetchAlerts ──
+async function fetchAlerts() {
+  try {
+    const alerts = await fetch('/alerts?limit=60').then(r => r.json());
+    const list = document.getElementById('alerts-list');
+    if (!alerts.length) { list.innerHTML = '<div class="empty-state"><div class="icon">✅</div><div>No alerts</div></div>'; return; }
+    list.innerHTML = alerts.map(a => `
+      <div class="alert-item ${a.acknowledged ? '' : 'unack'} ${a.severity}" id="alert-${a.id}">
+        <div class="alert-dot ${a.severity}"></div>
+        <div class="alert-content">
+          <div class="alert-msg">${a.message}</div>
+          <div class="alert-time">${a.time} &middot; ${a.type} &middot; <span class="tag ${a.severity==='high'?'tag-fall':a.severity==='medium'?'tag-anomaly':'tag-ok'}">${a.severity}</span></div>
+        </div>
+        ${!a.acknowledged ? `<button class="alert-ack-btn" onclick="ackAlert(${a.id})">ACK</button>` : '<span style="font-size:11px;color:var(--text-muted);font-family:var(--mono)">✓</span>'}
+      </div>`).join('');
+  } catch(e) { console.error('[fetchAlerts]', e); }
+}
+
+// ── fetchHistory ──
+async function fetchHistory() {
+  try {
+    const records = await fetch('/history?limit=200').then(r => r.json());
+    document.getElementById('hist-count').textContent = records.length + ' records';
+    const tbody = document.getElementById('history-tbody');
+    if (!records.length) { tbody.innerHTML = '<tr><td colspan="11" style="text-align:center;padding:24px;color:var(--text-muted)">No data</td></tr>'; return; }
+    tbody.innerHTML = [...records].reverse().map(r => {
+      const rowCls = r.fall_detected ? 'fall-row' : r.anomaly ? 'anomaly-row' : '';
+      const status = r.fall_detected ? '<span class="tag tag-fall">FALL</span>' : r.anomaly ? '<span class="tag tag-anomaly">ANOMALY</span>' : '<span class="tag tag-ok">OK</span>';
+      const srcTag = r.source === 'real' ? '<span class="tag tag-real">real</span>' : '<span class="tag tag-synth">synth</span>';
+      return `<tr class="${rowCls}"><td>${r.time}</td><td>${(r.accX||0).toFixed(3)}</td><td>${(r.accY||0).toFixed(3)}</td><td>${(r.accZ||0).toFixed(3)}</td><td>${(r.gyroX||0).toFixed(3)}</td><td>${(r.gyroY||0).toFixed(3)}</td><td>${(r.gyroZ||0).toFixed(3)}</td><td>${(r.magnitude||0).toFixed(3)}</td><td><span class="tag tag-activity">${r.activity||'?'}</span></td><td>${srcTag}</td><td>${status}</td></tr>`;
+    }).join('');
+  } catch(e) { console.error('[fetchHistory]', e); }
+}
+
+// ── Actions ──
+async function ackAlert(id) {
+  await fetch('/alerts/' + id + '/acknowledge', { method: 'POST' });
+  const el = document.getElementById('alert-' + id);
+  if (el) { el.classList.remove('unack'); el.querySelector('.alert-ack-btn')?.remove(); }
+  showToast('Alert acknowledged', 'success');
+  fetchStats();
+}
+async function ackAll() {
+  await fetch('/alerts/acknowledge_all', { method: 'POST' });
+  showToast('All alerts acknowledged', 'success');
+  fetchAlerts(); fetchStats();
+}
+async function triggerFall() {
+  await fetch('/simulate_fall', { method: 'POST' });
+  showToast('Fall simulation triggered', 'warning');
+}
+async function clearHistory() {
+  if (!confirm('Clear all sensor history and alerts?')) return;
+  await fetch('/clear_history', { method: 'POST' });
+  showToast('History cleared', 'success');
+  fetchStats();
+  if (currentPanel === 'history') fetchHistory();
+}
+function fetchNow() { fetchData(); fetchStats(); }
+function dismissFall() { document.getElementById('fall-overlay').classList.remove('show'); fallActive = false; }
+
+// ── Navigation ──
+const pageMeta = {
+  dashboard: ['Dashboard',    'Real-time fall & activity monitoring'],
+  live:      ['Live Sensors', 'Raw accelerometer & gyroscope streams'],
+  alerts:    ['Alerts',       'Fall & anomaly notifications'],
+  history:   ['History',      'All sensor readings'],
+  stats:     ['Statistics',   'Aggregated analysis'],
+};
+function showPanel(name) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+  document.getElementById('panel-' + name)?.classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(b => { if (b.getAttribute('onclick')?.includes("'" + name + "'")) b.classList.add('active'); });
+  currentPanel = name;
+  const [title, sub] = pageMeta[name] || [name, ''];
+  document.getElementById('page-title').textContent = title;
+  document.getElementById('page-sub').textContent   = sub;
+  if (name === 'alerts')  fetchAlerts();
+  if (name === 'history') fetchHistory();
+  if (name === 'stats')   fetchStats();
+}
+
+// ── Toast ──
+function showToast(msg, type) {
+  const c = document.getElementById('toast-container');
+  const t = document.createElement('div');
+  t.className = 'toast ' + (type || '');
+  t.textContent = msg;
+  c.appendChild(t);
+  setTimeout(() => { t.style.opacity = '0'; t.style.transition = 'opacity 0.3s'; setTimeout(() => t.remove(), 350); }, 2500);
+}
+
+// ── Boot ──
+fetchData();
+fetchStats();
+setInterval(() => { fetchData(); fetchStats(); }, 1000);
+</script>
+</body>
+</html>
