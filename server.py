@@ -1,36 +1,27 @@
-from flask import Flask, request, jsonify
-from model import predict_fall
-from alert import send_alert
+from flask import Flask, jsonify, send_from_directory
+import requests
 
 app = Flask(__name__)
 
-latest_data = {"acc": 0, "status": "Safe"}
+PHONE_IP = "10.168.100.75:8080"  # change if needed
 
-@app.route("/sensor", methods=["POST"])
-def sensor():
-    global latest_data
+@app.route('/')
+def home():
+    return send_from_directory('.', 'index.html')
 
-    data = request.json
-    ax = data.get("ax", 0)
-    ay = data.get("ay", 0)
-    az = data.get("az", 0)
+@app.route('/data')
+def get_data():
+    url = f"http://{PHONE_IP}/get?accX&accY&accZ"
+    
+    res = requests.get(url).json()
 
-    # Calculate magnitude
-    acc = (ax**2 + ay**2 + az**2) ** 0.5
+    data = {
+        "accX": res["buffer"]["accX"]["buffer"][-1],
+        "accY": res["buffer"]["accY"]["buffer"][-1],
+        "accZ": res["buffer"]["accZ"]["buffer"][-1],
+    }
 
-    result = predict_fall(acc)
+    return jsonify(data)
 
-    if result == 1:
-        latest_data = {"acc": acc, "status": "Fall Detected"}
-        send_alert()
-    else:
-        latest_data = {"acc": acc, "status": "Safe"}
-
-    return jsonify({"message": "Received"})
-
-@app.route("/status", methods=["GET"])
-def status():
-    return jsonify(latest_data)
-
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+if __name__ == '__main__':
+    app.run(debug=True)
