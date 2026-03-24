@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Fall Detector</title>
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@300;500;700&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --safe-color: #00ffaa;
+      --danger-color: #ff2d55;
+      --bg: #080c12;
+      --panel: #0d1420;
+      --border: #1a2a40;
+      --text-dim: #4a6a8a;
+      --text: #c8dff0;
+    }
+
+    body {
+      font-family: 'Rajdhani', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    /* Scanline overlay */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0,0,0,0.07) 2px,
+        rgba(0,0,0,0.07) 4px
+      );
+      pointer-events: none;
+      z-index: 100;
+    }
+
+    /* Radial glow bg */
+    .bg-glow {
+      position: fixed;
+      inset: 0;
+      background: radial-gradient(ellipse 60% 50% at 50% 50%, rgba(0,80,160,0.12) 0%, transparent 70%);
+      pointer-events: none;
+      transition: background 0.5s;
+    }
+    .bg-glow.danger {
+      background: radial-gradient(ellipse 70% 60% at 50% 50%, rgba(255,30,60,0.15) 0%, transparent 70%);
+    }
+
+    .container {
+      position: relative;
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 32px;
+      width: 100%;
+      max-width: 520px;
+      padding: 24px;
+    }
+
+    /* Header */
+    .header {
+      text-align: center;
+      letter-spacing: 0.2em;
+    }
+    .header h1 {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-dim);
+      text-transform: uppercase;
+      letter-spacing: 0.4em;
+      margin-bottom: 4px;
+    }
+    .header h2 {
+      font-size: 32px;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+    }
+
+    /* Main status orb */
+    .orb-wrapper {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 220px;
+      height: 220px;
+    }
+
+    .orb-ring {
+      position: absolute;
+      border-radius: 50%;
+      border: 1px solid var(--safe-color);
+      opacity: 0.2;
+      transition: border-color 0.4s;
+    }
+    .orb-ring:nth-child(1) { width: 220px; height: 220px; }
+    .orb-ring:nth-child(2) { width: 180px; height: 180px; opacity: 0.3; }
+    .orb-ring:nth-child(3) { width: 140px; height: 140px; opacity: 0.4; }
+
+    .orb {
+      position: relative;
+      z-index: 2;
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 35%, rgba(0,255,170,0.3), rgba(0,80,60,0.6));
+      border: 2px solid var(--safe-color);
+      box-shadow:
+        0 0 20px rgba(0,255,170,0.3),
+        0 0 60px rgba(0,255,170,0.1),
+        inset 0 0 20px rgba(0,255,170,0.1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.4s ease;
+    }
+
+    .orb svg {
+      width: 44px;
+      height: 44px;
+      transition: all 0.3s;
+    }
+
+    /* DANGER state */
+    .orb-wrapper.danger .orb-ring { border-color: var(--danger-color); }
+    .orb-wrapper.danger .orb {
+      background: radial-gradient(circle at 35% 35%, rgba(255,45,85,0.4), rgba(120,0,30,0.7));
+      border-color: var(--danger-color);
+      box-shadow:
+        0 0 20px rgba(255,45,85,0.5),
+        0 0 60px rgba(255,45,85,0.2),
+        inset 0 0 20px rgba(255,45,85,0.2);
+      animation: pulse-danger 0.6s ease-in-out infinite alternate;
+    }
+
+    @keyframes pulse-danger {
+      from { box-shadow: 0 0 20px rgba(255,45,85,0.5), 0 0 60px rgba(255,45,85,0.2); transform: scale(1); }
+      to   { box-shadow: 0 0 40px rgba(255,45,85,0.8), 0 0 100px rgba(255,45,85,0.3); transform: scale(1.06); }
+    }
+
+    @keyframes spin-ring {
+      from { transform: rotate(0deg); }
+      to   { transform: rotate(360deg); }
+    }
+    .orb-wrapper.danger .orb-ring:nth-child(1) { animation: spin-ring 4s linear infinite; }
+    .orb-wrapper.danger .orb-ring:nth-child(2) { animation: spin-ring 6s linear infinite reverse; }
+
+    /* Status label */
+    .status-label {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 28px;
+      letter-spacing: 0.2em;
+      color: var(--safe-color);
+      text-transform: uppercase;
+      transition: color 0.4s;
+      text-align: center;
+    }
+    .status-label.danger { color: var(--danger-color); }
+
+    .status-sub {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-dim);
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      text-align: center;
+      margin-top: -20px;
+      transition: color 0.4s;
+      height: 20px;
+    }
+    .status-sub.danger { color: rgba(255,45,85,0.7); }
+
+    /* Info panel */
+    .panel {
+      width: 100%;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 16px 20px;
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 16px;
+    }
+
+    .stat {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .stat-label {
+      font-size: 10px;
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+    }
+    .stat-value {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 16px;
+      color: var(--text);
+    }
+    .stat-value.live { color: var(--safe-color); }
+    .stat-value.live.danger { color: var(--danger-color); }
+
+    /* Log */
+    .log-panel {
+      width: 100%;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 12px 16px;
+    }
+    .log-title {
+      font-size: 10px;
+      letter-spacing: 0.35em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      margin-bottom: 10px;
+    }
+    .log-entries {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      max-height: 110px;
+      overflow-y: auto;
+    }
+    .log-entry {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 12px;
+      display: flex;
+      gap: 12px;
+    }
+    .log-entry .log-time { color: var(--text-dim); flex-shrink: 0; }
+    .log-entry .log-msg.safe { color: var(--safe-color); }
+    .log-entry .log-msg.danger { color: var(--danger-color); }
+
+    /* Acknowledgement Modal */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.75);
+      backdrop-filter: blur(4px);
+      z-index: 200;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s;
+    }
+    .modal-overlay.visible {
+      opacity: 1;
+      pointer-events: all;
+    }
+
+    .modal {
+      background: var(--panel);
+      border: 1px solid var(--danger-color);
+      border-radius: 6px;
+      padding: 32px 36px;
+      max-width: 380px;
+      width: 90%;
+      text-align: center;
+      box-shadow: 0 0 60px rgba(255,45,85,0.25), 0 0 120px rgba(255,45,85,0.1);
+      transform: scale(0.92);
+      transition: transform 0.3s;
+      position: relative;
+    }
+    .modal-overlay.visible .modal {
+      transform: scale(1);
+    }
+
+    .modal-icon {
+      font-size: 40px;
+      margin-bottom: 12px;
+      animation: shake 0.5s ease infinite alternate;
+    }
+    @keyframes shake {
+      from { transform: rotate(-8deg); }
+      to   { transform: rotate(8deg); }
+    }
+
+    .modal-title {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 22px;
+      color: var(--danger-color);
+      letter-spacing: 0.15em;
+      margin-bottom: 8px;
+    }
+
+    .modal-time {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 12px;
+      color: var(--text-dim);
+      letter-spacing: 0.2em;
+      margin-bottom: 20px;
+    }
+
+    .modal-body {
+      font-size: 15px;
+      color: var(--text);
+      font-weight: 500;
+      letter-spacing: 0.05em;
+      line-height: 1.6;
+      margin-bottom: 28px;
+    }
+
+    .modal-ack-btn {
+      background: transparent;
+      border: 2px solid var(--danger-color);
+      color: var(--danger-color);
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: 0.3em;
+      text-transform: uppercase;
+      padding: 12px 36px;
+      border-radius: 3px;
+      cursor: pointer;
+      transition: all 0.2s;
+      width: 100%;
+    }
+    .modal-ack-btn:hover {
+      background: var(--danger-color);
+      color: #fff;
+      box-shadow: 0 0 20px rgba(255,45,85,0.4);
+    }
+    .modal-ack-btn:active {
+      transform: scale(0.97);
+    }
+
+    .modal-count {
+      position: absolute;
+      top: 12px;
+      right: 14px;
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 11px;
+      color: var(--text-dim);
+      letter-spacing: 0.15em;
+    }
+
+    /* Log ack badge */
+    .log-ack {
+      font-size: 10px;
+      color: var(--text-dim);
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      padding: 1px 5px;
+      margin-left: auto;
+      letter-spacing: 0.1em;
+      white-space: nowrap;
+    }
+    .log-ack.done { color: var(--safe-color); border-color: var(--safe-color); opacity: 0.6; }
+
+    /* Corner decorations */
+    .corner {
+      position: fixed;
+      width: 60px; height: 60px;
+      opacity: 0.3;
+    }
+    .corner::before, .corner::after {
+      content: '';
+      position: absolute;
+      background: var(--text-dim);
+    }
+    .corner::before { width: 2px; height: 100%; }
+    .corner::after  { width: 100%; height: 2px; }
+    .corner.tl { top: 20px; left: 20px; }
+    .corner.tr { top: 20px; right: 20px; transform: scaleX(-1); }
+    .corner.bl { bottom: 20px; left: 20px; transform: scaleY(-1); }
+    .corner.br { bottom: 20px; right: 20px; transform: scale(-1); }
+  </style>
+</head>
+<body>
+
+<div class="bg-glow" id="bgGlow"></div>
+
+<div class="corner tl"></div>
+<div class="corner tr"></div>
+<div class="corner bl"></div>
+<div class="corner br"></div>
+
+<div class="container">
+
+  <div class="header">
+    <h1>Arduino Sensor Monitor</h1>
+    <h2>Fall Detector</h2>
+  </div>
+
+  <div class="orb-wrapper" id="orbWrapper">
+    <div class="orb-ring"></div>
+    <div class="orb-ring"></div>
+    <div class="orb-ring"></div>
+    <div class="orb" id="orb">
+      <!-- Person icon (safe) -->
+      <svg id="iconSafe" viewBox="0 0 24 24" fill="none" stroke="var(--safe-color)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="5" r="2"/>
+        <path d="M12 8v6M9 11h6M10 20l2-6 2 6"/>
+        <path d="M9 17l-2 3M15 17l2 3"/>
+      </svg>
+      <!-- Fall icon (danger) -->
+      <svg id="iconDanger" viewBox="0 0 24 24" fill="none" stroke="var(--danger-color)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="display:none">
+        <circle cx="17" cy="4" r="2"/>
+        <path d="M15.5 6.5L10 9l-3 5"/>
+        <path d="M10 9l-2 3 3 2"/>
+        <path d="M3 19l6-3 3 1 5-3"/>
+        <line x1="2" y1="22" x2="22" y2="22" stroke-opacity="0.3"/>
+      </svg>
+    </div>
+  </div>
+
+  <div class="status-label" id="statusLabel">SAFE</div>
+  <div class="status-sub" id="statusSub">All clear — no collision detected</div>
+
+  <div class="panel">
+    <div class="stat">
+      <span class="stat-label">Connection</span>
+      <span class="stat-value live" id="connStatus">ACTIVE</span>
+    </div>
+    <div class="stat">
+      <span class="stat-label">Last Event</span>
+      <span class="stat-value" id="lastEvent">—</span>
+    </div>
+    <div class="stat">
+      <span class="stat-label">Alerts Today</span>
+      <span class="stat-value" id="alertCount">0</span>
+    </div>
+  </div>
+
+  <div class="log-panel">
+    <div class="log-title">Event Log</div>
+    <div class="log-entries" id="logEntries"></div>
+  </div>
+
+</div>
+
+<!-- Acknowledgement Modal -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <div class="modal-count" id="modalCount"></div>
+    <div class="modal-icon">⚠️</div>
+    <div class="modal-title">FALL DETECTED</div>
+    <div class="modal-time" id="modalTime"></div>
+    <div class="modal-body">
+      A collision event has been triggered.<br/>
+      Please confirm you have attended to the situation.
+    </div>
+    <button class="modal-ack-btn" id="ackBtn" onclick="acknowledge()">
+      ✓ &nbsp; Acknowledge
+    </button>
+  </div>
+</div>
+
+<!-- Audio context for buzzer -->
+<script>
+  let audioCtx = null;
+  let buzzerNode = null;
+  let gainNode = null;
+
+  function startBuzzer() {
+    if (buzzerNode) return;
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+    buzzerNode = audioCtx.createOscillator();
+    gainNode = audioCtx.createGain();
+    buzzerNode.type = 'square';
+    buzzerNode.frequency.setValueAtTime(880, audioCtx.currentTime);
+    gainNode.gain.setValueAtTime(0.18, audioCtx.currentTime);
+    buzzerNode.connect(gainNode);
+    gainNode.connect(audioCtx.destination);
+    buzzerNode.start();
+  }
+
+  function stopBuzzer() {
+    if (buzzerNode) {
+      buzzerNode.stop();
+      buzzerNode.disconnect();
+      buzzerNode = null;
+    }
+  }
+
+  // State
+  let alertCount = 0;
+  let prevStatus = 'SAFE';
+  let pendingAck = false;      // true while modal is open
+  let lastCollisionTime = null;
+
+  function fmtTime(ts) {
+    const d = new Date(ts * 1000);
+    return d.toLocaleTimeString('en-US', { hour12: false });
+  }
+
+  function addLog(status, time, acked = false) {
+    const container = document.getElementById('logEntries');
+    const entry = document.createElement('div');
+    entry.className = 'log-entry';
+    entry.id = status === 'COLLISION' ? `log-collision-${time}` : '';
+    entry.innerHTML = `
+      <span class="log-time">${fmtTime(time)}</span>
+      <span class="log-msg ${status.toLowerCase()}">${status === 'COLLISION' ? '⚠ FALL DETECTED' : '✓ SAFE'}</span>
+      ${status === 'COLLISION' ? `<span class="log-ack" id="ack-badge-${time}">${acked ? 'ACKED' : 'PENDING'}</span>` : ''}
+    `;
+    container.prepend(entry);
+    while (container.children.length > 20) container.removeChild(container.lastChild);
+    return time;
+  }
+
+  function showModal(timestamp) {
+    pendingAck = true;
+    lastCollisionTime = timestamp;
+    document.getElementById('modalTime').textContent = `Detected at ${fmtTime(timestamp)}`;
+    document.getElementById('modalCount').textContent = `Alert #${alertCount}`;
+    document.getElementById('modalOverlay').classList.add('visible');
+  }
+
+  function acknowledge() {
+    pendingAck = false;
+    document.getElementById('modalOverlay').classList.remove('visible');
+    stopBuzzer();
+
+    // Mark log entry as acknowledged
+    if (lastCollisionTime) {
+      const badge = document.getElementById(`ack-badge-${lastCollisionTime}`);
+      if (badge) {
+        badge.textContent = 'ACKED';
+        badge.classList.add('done');
+      }
+    }
+
+    // Add ack entry to log
+    const container = document.getElementById('logEntries');
+    const entry = document.createElement('div');
+    entry.className = 'log-entry';
+    entry.innerHTML = `
+      <span class="log-time">${fmtTime(Date.now()/1000)}</span>
+      <span class="log-msg safe">✓ ACKNOWLEDGED</span>
+    `;
+    container.prepend(entry);
+    while (container.children.length > 20) container.removeChild(container.lastChild);
+  }
+
+  function applyState(status, timestamp) {
+    const isDanger = status === 'COLLISION';
+    const orb = document.getElementById('orbWrapper');
+    const label = document.getElementById('statusLabel');
+    const sub = document.getElementById('statusSub');
+    const bgGlow = document.getElementById('bgGlow');
+    const connStatus = document.getElementById('connStatus');
+    const iconSafe = document.getElementById('iconSafe');
+    const iconDanger = document.getElementById('iconDanger');
+
+    if (isDanger) {
+      orb.classList.add('danger');
+      label.textContent = 'FALL DETECTED';
+      label.classList.add('danger');
+      sub.textContent = 'Collision event triggered!';
+      sub.classList.add('danger');
+      bgGlow.classList.add('danger');
+      connStatus.classList.add('danger');
+      iconSafe.style.display = 'none';
+      iconDanger.style.display = 'block';
+      if (!pendingAck) startBuzzer();
+    } else {
+      orb.classList.remove('danger');
+      label.textContent = 'SAFE';
+      label.classList.remove('danger');
+      sub.textContent = 'All clear — no collision detected';
+      sub.classList.remove('danger');
+      bgGlow.classList.remove('danger');
+      connStatus.classList.remove('danger');
+      iconSafe.style.display = 'block';
+      iconDanger.style.display = 'none';
+      if (!pendingAck) stopBuzzer();
+    }
+
+    document.getElementById('lastEvent').textContent = fmtTime(timestamp);
+  }
+
+  async function poll() {
+    try {
+      const res = await fetch('/status');
+      const data = await res.json();
+      const { status, timestamp } = data;
+
+      if (status !== prevStatus) {
+        addLog(status, timestamp);
+        if (status === 'COLLISION') {
+          alertCount++;
+          document.getElementById('alertCount').textContent = alertCount;
+          showModal(timestamp);
+        }
+        prevStatus = status;
+      }
+
+      applyState(status, timestamp);
+      document.getElementById('connStatus').textContent = 'ACTIVE';
+    } catch {
+      document.getElementById('connStatus').textContent = 'LOST';
+    }
+  }
+
+  // Unlock audio on first click
+  document.addEventListener('click', () => {
+    audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+  }, { once: true });
+
+  // Poll every 300ms
+  setInterval(poll, 300);
+  poll();
+</script>
+</body>
+</html>
