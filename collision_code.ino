@@ -39,12 +39,12 @@ void loop() {
   int collisionState = digitalRead(COLLISION_PIN);
 
   // ===== Logic =====
-  if (distance < 20) {   // threshold distance (adjust)
+  if (distance < 20) {  // threshold distance (adjust)
     Serial.println("⚠️ Object too close!");
     digitalWrite(BUZZER_PIN, HIGH);
   }
 
-  if (collisionState == LOW) {   // depends on sensor (LOW = detected)
+  if (collisionState == LOW) {  // depends on sensor (LOW = detected)
     Serial.println("🚨 Collision Detected!");
     digitalWrite(BUZZER_PIN, HIGH);
   }
